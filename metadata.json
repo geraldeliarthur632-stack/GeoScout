@@ -1,0 +1,7 @@
+{
+  "name": "GeoScout",
+  "description": "Um assistente avançado de levantamento topográfico com IA que identifica locais ideais para estações base GPS usando imagens de satélite e análise inteligente de terreno.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
