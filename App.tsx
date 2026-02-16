@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { Satellite, Navigation, Loader2, MapPin, Target, Pentagon, Trash2, Maximize } from 'lucide-react';
+import { Satellite, Navigation, Loader2, MapPin, Target, Pentagon, Trash2, Maximize, Radio } from 'lucide-react';
 import MapViewer from './components/MapViewer';
 import ScannerOverlay from './components/ScannerOverlay';
 import ResultsPanel from './components/ResultsPanel';
@@ -24,16 +23,17 @@ const App: React.FC = () => {
   const [calculatedArea, setCalculatedArea] = useState<number>(0);
 
   useEffect(() => {
+    // Configurado para durar exatamente 10 segundos (100ms * 100 = 10000ms)
     const timer = setInterval(() => {
       setSplashProgress(prev => {
         if (prev >= 100) {
           clearInterval(timer);
-          setTimeout(() => setShowSplash(false), 500);
+          setTimeout(() => setShowSplash(false), 800);
           return 100;
         }
-        return prev + 5;
+        return prev + 1;
       });
-    }, 50);
+    }, 100);
     return () => clearInterval(timer);
   }, []);
 
@@ -122,7 +122,6 @@ const App: React.FC = () => {
     setAppState(AppState.ANALYZING);
     
     try {
-      // Enviamos o polígono para a análise se ele existir
       const res = await analyzeTerrain(currentLocationName, targetPos, polygonCoords.length >= 3 ? polygonCoords : undefined);
       
       if (res && res.optimizedCoords) {
@@ -151,11 +150,49 @@ const App: React.FC = () => {
 
   if (showSplash) {
     return (
-      <div className="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center">
-        <Satellite className="w-16 h-16 text-cyan-500 animate-pulse" />
-        <h1 className="mt-6 text-2xl font-black text-white tracking-[0.2em]">GEOSCOUT</h1>
-        <div className="mt-4 w-48 h-1 bg-slate-800 rounded-full overflow-hidden">
-          <div className="h-full bg-cyan-500 transition-all duration-200" style={{ width: `${splashProgress}%` }}></div>
+      <div className="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center overflow-hidden">
+        {/* Elementos de Fundo Decorativos */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] border border-cyan-500 rounded-full animate-spin-slow"></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] border border-cyan-400 rounded-full animate-spin-slow" style={{ animationDirection: 'reverse' }}></div>
+        </div>
+
+        {/* Antena Animada Principal */}
+        <div className="relative flex flex-col items-center z-10">
+          <div className="relative mb-12">
+            {/* Ondas de sinal subindo da antena */}
+            <div className="absolute top-0 left-1/2 w-40 h-40 bg-cyan-500/20 rounded-full animate-ping-slow"></div>
+            <div className="absolute top-4 left-1/2 w-32 h-32 bg-cyan-400/30 rounded-full animate-ping-slow" style={{ animationDelay: '0.6s' }}></div>
+            <div className="absolute top-8 left-1/2 w-24 h-24 bg-cyan-300/40 rounded-full animate-ping-slow" style={{ animationDelay: '1.2s' }}></div>
+            
+            {/* Base da Antena */}
+            <div className="relative z-20 p-8 bg-slate-900 rounded-full border border-cyan-500 shadow-[0_0_50px_rgba(6,182,212,0.4)] animate-antenna-sway">
+              <Radio className="w-20 h-20 text-cyan-400 drop-shadow-[0_0_8px_cyan]" />
+            </div>
+            
+            {/* Partículas de dados flutuantes */}
+            <div className="absolute -top-10 -right-12 w-3 h-3 bg-white rounded-full animate-float-particle-1"></div>
+            <div className="absolute top-24 -left-16 w-2 h-2 bg-cyan-400 rounded-full animate-float-particle-2"></div>
+            <div className="absolute -bottom-6 -right-10 w-2.5 h-2.5 bg-emerald-400 rounded-full animate-float-particle-3"></div>
+          </div>
+
+          <div className="text-center space-y-2">
+            <h1 className="text-4xl font-black text-white tracking-[0.4em] drop-shadow-[0_0_15px_rgba(6,182,212,0.6)]">GEOSCOUT</h1>
+            <p className="text-xs text-cyan-500 font-mono tracking-[0.2em] uppercase opacity-80">Sincronizando Satélites GNSS</p>
+          </div>
+
+          <div className="mt-12 w-64 flex flex-col items-center gap-3">
+             <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+                <div 
+                  className="h-full bg-gradient-to-r from-cyan-600 to-cyan-400 transition-all duration-300 shadow-[0_0_10px_cyan]" 
+                  style={{ width: `${splashProgress}%` }}
+                ></div>
+             </div>
+             <div className="flex justify-between w-full text-[10px] font-mono text-cyan-700 uppercase tracking-tighter">
+                <span>Datalink: Ativo</span>
+                <span>{splashProgress}% Concluído</span>
+             </div>
+          </div>
         </div>
       </div>
     );
