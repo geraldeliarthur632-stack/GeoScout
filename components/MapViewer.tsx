@@ -49,7 +49,14 @@ const MapController: React.FC<{ center: Coordinate; zoom: number }> = ({ center,
   const map = useMap();
   
   useEffect(() => {
-    if (center && !isNaN(center.lat) && !isNaN(center.lng)) {
+    // Força o mapa a recalcular o tamanho após inicializar em background
+    setTimeout(() => {
+        map.invalidateSize();
+    }, 500);
+  }, [map]);
+
+  useEffect(() => {
+    if (center && typeof center.lat === 'number' && typeof center.lng === 'number' && !isNaN(center.lat) && !isNaN(center.lng)) {
       map.flyTo([center.lat, center.lng], zoom, {
         duration: 1.5,
         animate: true
@@ -82,19 +89,20 @@ const MapViewer: React.FC<MapViewerProps> = ({
 }) => {
   const defaultCenter: [number, number] = [-23.5505, -46.6333];
   
-  const safeCenter: [number, number] = 
-    (center && !isNaN(center.lat) && !isNaN(center.lng)) 
+  const isValidCoord = (c: any): c is Coordinate => 
+    c && typeof c.lat === 'number' && typeof c.lng === 'number' && !isNaN(c.lat) && !isNaN(c.lng);
+
+  const safeCenter: [number, number] = isValidCoord(center) 
       ? [center.lat, center.lng] 
       : defaultCenter;
 
-  const safeMarker: [number, number] | null = 
-    (markerPosition && !isNaN(markerPosition.lat) && !isNaN(markerPosition.lng))
+  const safeMarker: [number, number] | null = isValidCoord(markerPosition)
       ? [markerPosition.lat, markerPosition.lng]
       : null;
 
   // Filtragem defensiva para evitar o erro "Invalid LatLng object: (NaN, NaN)"
   const polyCoords: [number, number][] = polygonPoints
-    .filter(p => p && !isNaN(p.lat) && !isNaN(p.lng))
+    .filter(p => isValidCoord(p))
     .map(p => [p.lat, p.lng]);
 
   return (
