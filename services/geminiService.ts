@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { Coordinate, AnalysisResult } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -58,11 +58,13 @@ export const analyzeTerrain = async (locationName: string, coords: Coordinate, p
   try {
     let contextPrompt = `Analise a área em torno de ${locationName} (${coords.lat}, ${coords.lng}).`;
     
-    if (polygon && polygon.length >= 3) {
+    if (polygon && polygon.length >= 2) {
       const polyStr = polygon.map(p => `[${p.lat}, ${p.lng}]`).join(", ");
-      contextPrompt = `Você é um engenheiro de GPS geodésico de elite. Analise a área DELIMITADA pelo seguinte polígono de coordenadas: ${polyStr}. 
-      Sua tarefa é encontrar o ponto EXATO (coordenada) OBRIGATORIAMENTE DENTRO desse polígono que seja perfeito para instalar uma base GNSS. 
-      Considere: visão desimpedida do céu (limpeza de horizonte), ausência de superfícies refletoras próximas (multi-path), estabilidade do solo e maior altitude relativa dentro da área.`;
+      const typeStr = polygon.length === 2 ? "segmento de linha/trajeto" : "área delimitada pelo polígono";
+      
+      contextPrompt = `Você é um engenheiro de GPS geodésico de elite. Analise a seleção geográfica definida por este ${typeStr}: ${polyStr}. 
+      Sua tarefa é encontrar o ponto EXATO (coordenada) OBRIGATORIAMENTE PRÓXIMO ou DENTRO desta seleção que seja perfeito para instalar uma base GNSS. 
+      Considere: visão desimpedida do céu (limpeza de horizonte), ausência de superfícies refletoras próximas (multi-path), estabilidade do solo e maior altitude relativa na região da seleção.`;
     } else {
       contextPrompt = `Você é um engenheiro de GPS geodésico de elite. Analise a área em torno de ${locationName} (${coords.lat}, ${coords.lng}). 
       Sua tarefa é encontrar o ponto EXATO (coordenada) num raio de 500m que seja perfeito para instalar uma base GNSS (visão desimpedida do céu, sem interferências multi-path, terreno estável e alto).`;
@@ -100,7 +102,6 @@ export const analyzeTerrain = async (locationName: string, coords: Coordinate, p
     const cleanedJson = cleanJsonString(response.text || "");
     const data = JSON.parse(cleanedJson);
 
-    // Validação de segurança para garantir que optimizedCoords contenha números válidos
     const optimizedLat = Number(data.optimizedCoords?.lat);
     const optimizedLng = Number(data.optimizedCoords?.lng);
 
@@ -125,3 +126,56 @@ export const analyzeTerrain = async (locationName: string, coords: Coordinate, p
     };
   }
 };
+
+export const speakInstruction = async (text: string) => {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-preview-tts",
+      contents: [{ parts: [{ text: `Diga com voz de GPS de forma clara e profissional: ${text}` }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: 'Kore' },
+          },
+        },
+      },
+    });
+
+    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if (base64Audio) {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+      const audioData = decodeBase64(base64Audio);
+      const audioBuffer = await decodeAudioData(audioData, audioContext, 24000, 1);
+      const source = audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioContext.destination);
+      source.start();
+    }
+  } catch (error) {
+    console.error("TTS Error:", error);
+  }
+};
+
+function decodeBase64(base64: string) {
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
+async function decodeAudioData(data: Uint8Array, ctx: AudioContext, sampleRate: number, numChannels: number): Promise<AudioBuffer> {
+  const dataInt16 = new Int16Array(data.buffer);
+  const frameCount = dataInt16.length / numChannels;
+  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+
+  for (let channel = 0; channel < numChannels; channel++) {
+    const channelData = buffer.getChannelData(channel);
+    for (let i = 0; i < frameCount; i++) {
+      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+    }
+  }
+  return buffer;
+}
